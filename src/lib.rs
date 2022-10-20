@@ -62,6 +62,10 @@ impl<T> Dataloader<T> {
 
         inner.load_many(self.loader.clone(), keys).await
     }
+
+    pub fn loader(&self) -> &T {
+        &self.loader
+    }
 }
 
 struct DataloaderInner<K, V, E> {
