@@ -56,8 +56,11 @@ impl<T> Dataloader<T> {
                 .or_insert_with(|| Box::new(DataloaderInner::<K, V, T::Error>::default()))
                 .downcast_ref::<DataloaderInner<K, V, T::Error>>()
                 .expect(&*format!(
-                    "`Dataloader<{}>` state downcast failed",
-                    type_name::<T>()
+                    "`Dataloader<{}>` -> `DataloaderInner<{}, {}, {}>` downcast failed",
+                    type_name::<T>(),
+                    type_name::<K>(),
+                    type_name::<V>(),
+                    type_name::<T::Error>(),
                 ))
                 .clone()
         };
