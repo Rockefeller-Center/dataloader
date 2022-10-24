@@ -14,7 +14,7 @@ pub use self::error::Error;
 
 #[derive(Clone)]
 pub struct Dataloader<T> {
-    state: Arc<Mutex<HashMap<TypeId, Box<dyn Any + Send>>>>,
+    state: Arc<Mutex<HashMap<(TypeId, TypeId), Box<dyn Any + Send>>>>,
     loader: T,
 }
 
@@ -52,7 +52,7 @@ impl<T> Dataloader<T> {
             let mut state = self.state.lock();
 
             state
-                .entry(TypeId::of::<K>())
+                .entry((TypeId::of::<K>(), TypeId::of::<V>()))
                 .or_insert_with(|| Box::new(DataloaderInner::<K, V, T::Error>::default()))
                 .downcast_ref::<DataloaderInner<K, V, T::Error>>()
                 .expect(&*format!(
