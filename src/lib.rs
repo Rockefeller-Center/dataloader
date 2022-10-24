@@ -6,6 +6,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::sync::{Arc, Weak};
 
+use futures_util::future;
 use futures_util::stream::{self, StreamExt as _, TryStreamExt as _};
 use parking_lot::Mutex;
 use tokio::sync::broadcast;
@@ -118,9 +119,9 @@ impl<K, V, E> DataloaderInner<K, V, E> {
             if pending.len() == 0 && unseen.len() == 0 {
                 return ready
                     .into_iter()
-                    .map(|(key, result)| match result {
-                        Ok(map) => Ok(map.get(&key).unwrap().clone()),
-                        Err(e) => Err(Error::loader(e)),
+                    .filter_map(|(key, result)| match result {
+                        Ok(map) => map.get(&key).cloned().map(Ok),
+                        Err(e) => Some(Err(Error::loader(e))),
                     })
                     .collect();
             }
@@ -128,20 +129,24 @@ impl<K, V, E> DataloaderInner<K, V, E> {
             let pending = stream::iter(
                 ready
                     .into_iter()
-                    .map(|(key, result)| match result {
-                        Ok(map) => Ok(map.get(&key).unwrap().clone()),
-                        Err(e) => Err(Error::loader(e)),
+                    .filter_map(|(key, result)| match result {
+                        Ok(map) => map.get(&key).cloned().map(Ok),
+                        Err(e) => Some(Err(Error::loader(e))),
                     })
                     .collect::<Vec<_>>(),
             )
-            .chain(stream::iter(pending).then(|(key, mut rx)| async move {
-                Ok(rx
-                    .recv()
-                    .await
-                    .map_err(Error::recv)?
-                    .map(|mut map| map.remove(&key).unwrap())
-                    .map_err(Error::loader)?)
-            }));
+            .chain(
+                stream::iter(pending)
+                    .then(|(key, mut rx)| async move {
+                        Ok(rx
+                            .recv()
+                            .await
+                            .map_err(Error::recv)?
+                            .map(|mut map| map.remove(&key))
+                            .map_err(Error::loader)?)
+                    })
+                    .try_filter_map(|value| future::ready(Ok(value))),
+            );
 
             if unseen.len() == 0 {
                 pending.boxed()
