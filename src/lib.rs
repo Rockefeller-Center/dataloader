@@ -26,6 +26,7 @@ impl<T> Dataloader<T> {
         }
     }
 
+    #[tracing::instrument(skip_all)]
     pub async fn load_one<K, V>(&self, key: K) -> Result<Option<V>, Error>
     where
         K: Clone + Eq + Hash + Send + Sync + 'static,
@@ -38,6 +39,7 @@ impl<T> Dataloader<T> {
             .map(|vec| vec.into_iter().next())
     }
 
+    #[tracing::instrument(skip_all)]
     pub async fn load_many<I, K, V>(&self, keys: I) -> Result<Vec<V>, Error>
     where
         I: IntoIterator<Item = K>,
@@ -73,6 +75,7 @@ struct DataloaderInner<K, V, E> {
 }
 
 impl<K, V, E> DataloaderInner<K, V, E> {
+    #[tracing::instrument(skip_all)]
     async fn load_many<I, T>(&self, loader: T, keys: I) -> Result<Vec<V>, Error>
     where
         I: IntoIterator<Item = K>,
